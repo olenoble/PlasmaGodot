@@ -9,12 +9,11 @@ export var speed = 1.0 / 2.0
 var phase = 0
 
 var num_tiles = 0
-# var all_parameters = []
+var all_parameters = []
 var cell_size = 0
 var needed_tiles = []
 
 var tilemap
-# var tiles_pos = []
 var precalc_vec = []
 
 
@@ -36,22 +35,46 @@ func _ready():
 	print("Number of required tiles = " + str(needed_tiles))
 	
 	# first generate waves parameters
+	all_parameters.clear()
+	all_parameters.resize(number_wave)
 	_generate_all_parameters()
 	print("Done generating")
 
 
 func _generate_all_parameters():
-	# first generate waves parameters
-	var all_parameters = []
+	print("Regenerating All")
+	# var x = range(number_wave)
+	# print(x)
+	# x.shuffle()
+	# print(x)
+	# generate all waves parameters
+	# all_parameters = []
+	all_parameters.clear()
 	for _i in range(number_wave):
-		# we had length, angle (converted to vector) and phase
-		var angle = rand_range(angle_range.x, angle_range.y)
-		var wave_param = [rand_range(length_range.x, length_range.y),
-						  [cos(angle), sin(angle)],
-						  rand_range(zero_phase_range.x, zero_phase_range.y)]
-		all_parameters += [wave_param]
-	
-	# then pre-generate the vector for the phase
+		all_parameters += [_generate_wave_parameters()]
+	_generate_all_precalculated_vector()
+
+
+func _generate_one_parameters():	
+	var x = range(number_wave)
+	x.shuffle()
+	var param_ref = x[0]
+	print("Regenerating wave number " + str(param_ref))
+	all_parameters[param_ref] = _generate_wave_parameters()
+	_generate_all_precalculated_vector()
+
+
+func _generate_wave_parameters():
+	# we had length, angle (converted to vector) and phase
+	var angle = rand_range(angle_range.x, angle_range.y)
+	var wave_param = [rand_range(length_range.x, length_range.y), 
+					 [cos(angle), sin(angle)],
+					 rand_range(zero_phase_range.x, zero_phase_range.y)]
+	return wave_param
+
+
+func _generate_all_precalculated_vector():
+	# pre-generate the vector for the phase
 	precalc_vec = []
 	var vecx
 	var vecy
@@ -73,7 +96,7 @@ func _generate_all_parameters():
 
 
 func _process(delta):
-	# this is where we generate the waves
+	# this is where we update the tilemap
 	
 	# if we press space - we reset all the waves
 	if Input.is_physical_key_pressed(32):
@@ -95,3 +118,7 @@ func _process(delta):
 	# update the phase
 	var phase_shift = speed * delta
 	phase += phase_shift
+
+
+func _on_Timer_timeout():
+	call_deferred("_generate_one_parameters")
