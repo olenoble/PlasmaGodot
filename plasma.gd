@@ -9,12 +9,13 @@ export var speed = 1.0 / 2.0
 var phase = 0
 
 var num_tiles = 0
-var all_parameters = []
+# var all_parameters = []
 var cell_size = 0
 var needed_tiles = []
 
 var tilemap
-var tiles_pos = []
+# var tiles_pos = []
+var precalc_vec = []
 
 
 # Called when the node enters the scene tree for the first time.
@@ -35,6 +36,13 @@ func _ready():
 	print("Number of required tiles = " + str(needed_tiles))
 	
 	# first generate waves parameters
+	_generate_all_parameters()
+	print("Done generating")
+
+
+func _generate_all_parameters():
+	# first generate waves parameters
+	var all_parameters = []
 	for _i in range(number_wave):
 		# we had length, angle (converted to vector) and phase
 		var angle = rand_range(angle_range.x, angle_range.y)
@@ -43,35 +51,46 @@ func _ready():
 						  rand_range(zero_phase_range.x, zero_phase_range.y)]
 		all_parameters += [wave_param]
 	
-	# generate center position for all cells
+	# then pre-generate the vector for the phase
+	precalc_vec = []
+	var vecx
+	var vecy
+	var val
 	for row in needed_tiles[1]:
 		var row_pos = []
+		var row_precalc = []
 		for col in needed_tiles[0]:
-			row_pos += [[(col + 0.5) * cell_size, (row + 0.5) * cell_size]]
-		tiles_pos += [row_pos]
-	
-	print("Done generating")
+			row_pos = [(col + 0.5) * cell_size, (row + 0.5) * cell_size]
+			vecx = 0
+			vecy = 0
+			for params in all_parameters:
+				val = params[0] * (row_pos[0] * params[1][0] + 
+					  row_pos[1] * params[1][1]) + params[2]
+				vecx += sin(val)
+				vecy += cos(val)
+			row_precalc += [[vecx, vecy]]
+		precalc_vec += [row_precalc]
 
 
 func _process(delta):
-	# this is where we generate the waves	
-	var pos
-	var val
+	# this is where we generate the waves
 	
-	var pos_shift = 0.5 * cell_size
+	# if we press space - we reset all the waves
+	if Input.is_physical_key_pressed(32):
+		_generate_all_parameters()
+	
+	var val
+	var phase_trig = [cos(phase), sin(phase)]
+	
 	for row in range(needed_tiles[1]):
 		for col in range(needed_tiles[0]):
-			pos = tiles_pos[row][col]
-			val = 0
-			for params in all_parameters:
-				val += 1 + sin(params[0] * (pos[0] * params[1][0] + pos[1] * params[1][1]) + params[2] + phase)
-			
+			val = precalc_vec[row][col][0] * phase_trig[0] + precalc_vec[row][col][1] * phase_trig[1]
+			val += number_wave
 			val *= (num_tiles - 1) / (2.0 * number_wave)
 			val = floor(val) + 1
 			
 			# set the tile
-			tilemap.set_cell((pos[0] - pos_shift) / cell_size, 
-							 (pos[1] - pos_shift) / cell_size, val)
+			tilemap.set_cell(col, row, val)
 
 	# update the phase
 	var phase_shift = speed * delta
